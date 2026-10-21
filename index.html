@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>@doctors.speak — YouTube Thumbnail Studio (1280x720)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --kz-blue: #00A1DE;
+      --kz-blue-dark: #005B82;
+      --kz-navy: #0B192C;
+      --kz-gold: #FFC72C;
+      --kz-gold-dark: #D9A000;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    body {
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    /* Панель быстрого редактирования (для штамповки серий) */
+    .controls-panel {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 18px 22px;
+      width: 100%;
+      max-width: 1280px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      align-items: end;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-group input, .control-group select {
+      background: #0F172A;
+      border: 1px solid #475569;
+      color: #FFFFFF;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .control-group input:focus {
+      border-color: var(--kz-blue);
+    }
+
+    .download-btn {
+      background: linear-gradient(135deg, var(--kz-gold) 0%, #FFD55A 100%);
+      color: #0F172A;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+      text-transform: uppercase;
+      height: 42px;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    /* ================= ХОЛСТ ОБЛОЖКИ YOUTUBE (1280 x 720) ================= */
+    .thumbnail-wrapper {
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #thumbnailCanvas {
+      width: 1280px;
+      height: 720px;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 18% 22%, #006699 0%, #07192B 62%, #040D1A 100%);
+      display: flex;
+      justify-content: space-between;
+      padding: 56px 64px;
+    }
+
+    /* Декоративные элегантные круги свечения на фоне */
+    .bg-glow-blue {
+      position: absolute;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(0, 161, 222, 0.28) 0%, rgba(0, 161, 222, 0) 70%);
+      top: -180px;
+      left: -120px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .bg-glow-gold {
+      position: absolute;
+      width: 720px;
+      height: 720px;
+      background: radial-gradient(circle, rgba(255, 199, 44, 0.18) 0%, rgba(255, 199, 44, 0) 68%);
+      bottom: -220px;
+      right: 40px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* Тонкая фирменная золотая полоса слева */
+    .left-accent-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      background: linear-gradient(180deg, var(--kz-blue) 0%, var(--kz-gold) 100%);
+    }
+
+    /* Левая колонка: Текст + Мини-карточка вопроса (62% ширины) */
+    .left-content {
+      position: relative;
+      z-index: 5;
+      width: 740px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .top-badges {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-pill {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 20px;
+      padding: 8px 20px;
+      border-radius: 30px;
+      letter-spacing: 0.6px;
+    }
+
+    .episode-pill {
+      background: var(--kz-gold);
+      color: #0B192C;
+      font-weight: 900;
+      font-size: 20px;
+      padding: 8px 20px;
+      border-radius: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .title-block {
+      margin-top: 10px;
+    }
+
+    .main-title {
+      font-size: 76px;
+      font-weight: 900;
+      line-height: 1.04;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      letter-spacing: -1px;
+      text-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .highlight-gold {
+      color: var(--kz-gold);
+      display: block;
+    }
+
+    .subtitle-tags {
+      margin-top: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0, 161, 222, 0.18);
+      border: 1.5px solid rgba(0, 161, 222, 0.5);
+      color: #E0F2FE;
+      font-size: 23px;
+      font-weight: 800;
+      padding: 10px 22px;
+      border-radius: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Элегантная карточка с примером задачи из тренажера */
+    .ui-preview-card {
+      background: #FFFFFF;
+      border-radius: 22px;
+      padding: 22px 28px;
+      border-left: 10px solid var(--kz-gold);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+      width: 670px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ui-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ui-card-tag {
+      background: #EBF8FC;
+      color: #0077A3;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 8px;
+      text-transform: uppercase;
+    }
+
+    .ui-card-question {
+      font-size: 23px;
+      font-weight: 800;
+      color: #1E293B;
+      line-height: 1.3;
+    }
+
+    .ui-card-answer {
+      background: #DCFCE7;
+      border: 2px solid #22C55E;
+      color: #15803D;
+      font-size: 20px;
+      font-weight: 800;
+      padding: 10px 16px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Правая колонка: Фотография эксперта */
+    .right-photo-zone {
+      position: absolute;
+      right: 36px;
+      bottom: 0;
+      width: 490px;
+      height: 670px;
+      z-index: 4;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    /* Стильная рамка-капсула для фото с вашей студийной фотографией */
+    .photo-frame {
+      width: 430px;
+      height: 610px;
+      border-radius: 215px 215px 0 0;
+      overflow: hidden;
+      border: 5px solid rgba(255, 255, 255, 0.9);
+      border-bottom: none;
+      box-shadow: 0 -10px 40px rgba(0, 161, 222, 0.35);
+      background: #E2E8F0;
+      position: relative;
+    }
+
+    .photo-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 12%;
+      transform: scale(1.06);
+    }
+
+    /* Плашка "Разбор логики врача" поверх рамки */
+    .floating-badge {
+      position: absolute;
+      bottom: 34px;
+      left: -20px;
+      background: linear-gradient(135deg, #00A1DE 0%, #0077A3 100%);
+      color: #FFFFFF;
+      padding: 12px 22px;
+      border-radius: 16px;
+      font-weight: 900;
+      font-size: 19px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ПАНЕЛЬ БЫСТРОЙ ШТАМПОВКИ ОБЛОЖЕК -->
+  <div class="controls-panel">
+    <div class="control-group">
+      <label>1. Загрузить ваше фото:</label>
+      <input type="file" id="photoInput" accept="image/*" onchange="loadCustomPhoto(event)">
+    </div>
+
+    <div class="control-group">
+      <label>2. Номер выпуска / плашка:</label>
+      <input type="text" id="inpEpisode" value="ВЫПУСК #01" oninput="updateThumbnail()">
+    </div>
+
+    <div class="control-group">
+      <label>3. Главный заголовок (Строка 1):</label>
+      <input type="text" id="inpTitle1" value="MEDICAL" oninput="updateThumbnail()">
+    </div>
+
+    <div class="control-group">
+      <label>4. Золотой акцент (Строка 2):</label>
+      <input type="text" id="inpTitle2" value="ENGLISH" oninput="updateThumbnail()">
+    </div>
+
+    <div class="control-group">
+      <label>5. Подзаголовок разделов:</label>
+      <input type="text" id="inpSub" value="GRAMMAR • VOCAB • READING" oninput="updateThumbnail()">
+    </div>
+
+    <div class="control-group">
+      <label>6. Вопрос в карточке тренажера:</label>
+      <input type="text" id="inpQuestion" value="How long ____ this dry cough?" oninput="updateThumbnail()">
+    </div>
+
+    <div class="control-group">
+      <label>7. Правильный ответ в карточке:</label>
+      <input type="text" id="inpAnswer" value="A) have you had (Present Perfect)" oninput="updateThumbnail()">
+    </div>
+
+    <button class="download-btn" onclick="downloadThumbnail()">💾 Скачать PNG (1280×720)</button>
+  </div>
+
+  <!-- ПРЕВЬЮ САМОЙ ОБЛОЖКИ YOUTUBE (1280 x 720) -->
+  <div class="thumbnail-wrapper">
+    <div id="thumbnailCanvas">
+      <div class="bg-glow-blue"></div>
+      <div class="bg-glow-gold"></div>
+      <div class="left-accent-bar"></div>
+
+      <!-- Левая часть: Типографика + Карточка вопроса -->
+      <div class="left-content">
+        <div class="top-badges">
+          <span class="brand-pill">@doctors.speak</span>
+          <span class="episode-pill" id="outEpisode">ВЫПУСК #01</span>
+        </div>
+
+        <div class="title-block">
+          <div class="main-title">
+            <span id="outTitle1">MEDICAL</span>
+            <span class="highlight-gold" id="outTitle2">ENGLISH</span>
+          </div>
+          <div class="subtitle-tags" id="outSub">
+            GRAMMAR • VOCAB • READING
+          </div>
+        </div>
+
+        <!-- Лаконичная карточка из вашего тренажера -->
+        <div class="ui-preview-card">
+          <div class="ui-card-header">
+            <span class="ui-card-tag">🩺 Clinical & Academic Practice</span>
+            <span style="font-size: 15px; font-weight: 800; color: #D9A000;">🔥 kazdoctors.com</span>
+          </div>
+          <div class="ui-card-question" id="outQuestion">
+            How long ____ this dry cough?
+          </div>
+          <div class="ui-card-answer">
+            <span id="outAnswer">A) have you had (Present Perfect)</span>
+            <span>✅</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Правая часть: Ваша фотография -->
+      <div class="right-photo-zone">
+        <div class="photo-frame">
+          <img id="doctorPhoto" src="2026-10-20 19.58.29.jpg" alt="Doctor Photo">
+        </div>
+        <div class="floating-badge">
+          🧠 Практика и разбор вместе!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateThumbnail() {
+      document.getElementById('outEpisode').textContent = document.getElementById('inpEpisode').value;
+      document.getElementById('outTitle1').textContent = document.getElementById('inpTitle1').value;
+      document.getElementById('outTitle2').textContent = document.getElementById('inpTitle2').value;
+      document.getElementById('outSub').textContent = document.getElementById('inpSub').value;
+      document.getElementById('outQuestion').textContent = document.getElementById('inpQuestion').value;
+      document.getElementById('outAnswer').textContent = document.getElementById('inpAnswer').value;
+    }
+
+    function loadCustomPhoto(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('doctorPhoto').src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function downloadThumbnail() {
+      const canvasEl = document.getElementById('thumbnailCanvas');
+      html2canvas(canvasEl, {
+        scale: 2, // Высокая четкость (2560x1440 Retina -> 16:9)
+        useCORS: true,
+        backgroundColor: null
+      }).then(canvas => {
+        const link = document.createElement('a');
+        const ep = document.getElementById('inpEpisode').value.replace(/[^a-zA-Z0-9а-яА-Я]/g, '_');
+        link.download = `doctors_speak_thumbnail_${ep}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>
